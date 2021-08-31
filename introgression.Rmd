@@ -1,5 +1,4 @@
 ---
-title: Simulating Neanderthal introgression using *slendr*
 output:
   md_document:
     variant: gfm
@@ -17,6 +16,8 @@ knitr::opts_chunk$set(
 )
 set.seed(314159)
 ```
+
+# Simulating Neanderthal introgression data using *slendr*
 
 Load the *slendr* library (we use a development version from GitHub, so we're loading it from a local copy):
 
@@ -94,18 +95,13 @@ model <- read(model_dir)
 ts <- ts_load(model, output_dir = output_dir,
               recapitate = TRUE, Ne = 10000, recomb_rate = 1e-8,
               simplify = TRUE)
-
-ts
 ```
 
 Let's sprinkle mutations on the tree sequence data structure (not that we did not simulate any mutations at all so far, which is why we can generate so much data for so many individuals in a forward simulation):
 
 ```{r}
 ts_mut <- ts_mutate(ts, mutation_rate = 1e-8)
-
-ts_mut
 ```
-
 
 ## Sanity checks
 
@@ -157,7 +153,9 @@ inner_join(f4_result, samples, by = c("X" = "name")) %>%
     geom_pointrange(aes(ymin = f4 - 2 * stderr, ymax = f4 + 2 * stderr, group = X),
                     position = position_dodge(width = 1)) +
     geom_hline(yintercept = 0, linetype = 2) +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank())
+    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) +
+    ggtitle("f4(AFR1, <African or European>; Neanderthal, Chimp)",
+            "Statistical test for the presence of Neanderthal ancestry")
 ```
 
 Looks great! We can see that the Africans are all consistent with the hypothesis of no Neanderthal introgression (as expected, and as implied by the $f_4$ values consistent with 0). On the other hand, we get a significantly negative $f_4$ value for all European individuals, indicating that they carry evidence of Neanderthal introgression.
@@ -180,7 +178,9 @@ inner_join(f4ratio_result, samples, by = c("X" = "name")) %>%
     geom_hline(yintercept = 0, linetype = 2) +
     geom_smooth(method = "lm") +
     coord_cartesian(ylim = c(0, 0.1)) +
-    xlim(c(max(filter(samples, pop == "EUR")$time), 0))
+    xlim(c(max(filter(samples, pop == "EUR")$time), 0)) +
+    ggtitle("f4-ratio estimate of Neanderthal ancestry in Europeans over time") +
+    labs(x = "time [years before present]", y = "Neanderhal ancestry proportion")
 ```
 
 As expected, we see a constant level of Neanderthal ancestry around 3% (which is exactly what we have simulated)!
