@@ -208,7 +208,7 @@ As expected, we see a constant level of Neanderthal ancestry around 3% (which is
 
 Having made sure that the simulated data looks reasonable, we can save the simulated genotypes in a VCF format:
 
-```{r}
+```{r, eval = FALSE}
 ts_vcf(ts_mut, path = file.path(output_dir, "output.vcf.gz"))
 ```
 
