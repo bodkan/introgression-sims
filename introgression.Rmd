@@ -19,15 +19,23 @@ set.seed(314159)
 
 Load the *slendr* library (we use a development version from GitHub, so we're loading it from a local copy):
 
+```{r, eval = FALSE}
+devtools::install_github("bodkan/slendr")
+```
+
 ```{r}
-devtools::load_all("~/projects/slendr")
+library(slendr)
+
+# we also need to set the path to the Python environment containing
+# msprime and tskit modules we use for tree sequence processing
+reticulate::use_virtualenv("~/.pyenv/versions/retipy", required = TRUE)
 ```
 
 Set the location for the model configuration files and the direction for output data:
 
 ```{r}
-model_dir <- "~/projects/introgression-sims/model"
-output_dir <- "~/projects/introgression-sims/results"
+model_dir <- "./model"
+output_dir <- "./results"
 ```
 
 Let's specify the simplest possible introgression model with only three populations:
