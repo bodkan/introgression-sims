@@ -14,7 +14,6 @@ knitr::opts_chunk$set(
   dpi = 80,
   eval = TRUE
 )
-set.seed(314159)
 ```
 
 # Simulating Neanderthal introgression data using *slendr*
@@ -23,6 +22,9 @@ Let's start by loading the *slendr* library (we install a development version fr
 
 ```{r}
 devtools::install_github("bodkan/slendr")
+
+SEED <- 314159265
+set.seed(SEED)
 ```
 
 ```{r}
@@ -86,10 +88,10 @@ Finally we execute the simulation (we simulate 100Mb of sequence in each sampled
 
 ```{r, eval = FALSE}
 slim(
-  model, seq_length = 100e6, recomb_rate = 1e-8,
-  ts_recording = TRUE, sampling = samples,
-  method = "batch", output_dir = output_dir,
-  overwrite = TRUE, verbose = TRUE, seed = 314159265
+  model, sequence_length = 100e6, recombination_rate = 1e-8,
+  sampling = samples,
+  method = "batch", output = file.path(output_dir, "output"),
+  verbose = TRUE, seed = SEED
 )
 ```
 
@@ -104,9 +106,9 @@ model <- read(model_dir)
 ```
 
 ```{r}
-ts <- ts_load(model, output_dir = output_dir,
-              recapitate = TRUE, Ne = 10000, recomb_rate = 1e-8,
-              simplify = TRUE)
+ts <- ts_load(model, file = file.path(output_dir, "output.trees"),
+              recapitate = TRUE, Ne = 10000, recombination_rate = 1e-8,
+              simplify = TRUE, random_seed = SEED)
 ```
 
 Let's sprinkle mutations on the tree sequence data structure (note that we did not simulate any mutations at all so far, which is why we can generate so much data for so many individuals in a forward simulation):
