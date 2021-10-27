@@ -51,8 +51,8 @@ Let's specify the simplest possible introgression model with only three populati
 - one "European" population -- no complex Eurasian history, a single uniform population with $N_e = 5000$
 
 ```{r}
-afr <- population("AFR", time = 650e3, N = 10000)
-nea <- population("NEA", parent = afr, time = 600e3, N = 1000, remove = 35e3)
+afr <- population("AFR", time = 600e3, N = 10000)
+nea <- population("NEA", time = 600e3, N = 1000, remove = 35e3)
 eur1 <- population("EUR1", parent = afr, time = 70e3, N = 5000)
 eur2 <- population("EUR2", parent = eur1, time = 45e3, N = 5000)
 ```
@@ -112,10 +112,19 @@ ensure coalescence of all genealogies in the tree sequence, and
 only nodes appearing as coalescence nodes somewhere in the genealogy of the explicitly
 sampled individuals (or rather their chromosomes). At the same time, let's also sprinkle mutations on the tree sequence data structure (note that we did not simulate any mutations at all so far, which is why we can generate so much data for so many individuals in a forward simulation):
 
+```{r, eval = FALSE}
+model <- read(model_dir)
+```
+
 ```{r}
 ts <- ts_load(model, file = file.path(output_dir, "output_ts.trees"),
-              recapitate = TRUE, Ne = 10000, recombination_rate = 1e-8,
-              simplify = TRUE, mutation_rate = 1e-8, random_seed = SEED)
+              recapitate = TRUE, Ne = 1, recombination_rate = 0,
+              simplify = TRUE, keep_input_roots = TRUE,
+              mutation_rate = 1e-8, random_seed = SEED,
+              migration_matrix = list(c(0, 1, 0, 0),
+                                      c(1, 0, 0, 0),
+                                      c(0, 0, 0, 0),
+                                      c(0, 0, 0, 0)))
 ```
 
 ## Sanity checks
