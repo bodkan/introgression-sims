@@ -118,9 +118,9 @@ model <- read(model_dir)
 
 ```{r}
 ts <- ts_load(model, file = file.path(output_dir, "output_ts.trees"),
-              recapitate = TRUE, Ne = 1, recombination_rate = 0,
-              simplify = TRUE, keep_input_roots = TRUE,
-              mutation_rate = 1e-8, random_seed = SEED,
+              recapitate = TRUE, Ne = 10000, recombination_rate = 1e-8,
+              simplify = TRUE,
+              mutate = TRUE, mutation_rate = 1e-8, random_seed = SEED,
               migration_matrix = list(c(0, 1, 0, 0),
                                       c(1, 0, 0, 0),
                                       c(0, 0, 0, 0),
@@ -179,7 +179,7 @@ it's $f_4$ value is even more negative.
 f4_result <-
   filter(samples, time == 0, pop %in% c("AFR", "EUR1", "EUR2")) %>%
   group_by(pop) %>%
-  sample_n(50) %>%
+  sample_n(25) %>%
   pull(name) %>%
   f4(W = "AFR_1", X = ., Y = "NEA_1", Z = "chimp", data = eigen_data)
 ```
@@ -247,7 +247,7 @@ filter(time == 0) %>%
 Having made sure that the simulated data looks reasonable, we can save the simulated genotypes in a VCF format:
 
 ```{r}
-ts_vcf(ts_mut, path = file.path(output_dir, "output.vcf.gz"))
+ts_vcf(ts, path = file.path(output_dir, "output.vcf.gz"))
 ```
 
 ## How to run this pipeline
