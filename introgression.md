@@ -108,7 +108,7 @@ slim(
 #> 
 #> /home/krd114/.my_local/bin/slim  \
 #>     -d SEED=314159265  \
-#>     -d 'SAMPLES="/tmp/RtmpxMNHBg/file2487b85eb56fa7"' \
+#>     -d 'SAMPLES="/tmp/Rtmpi9wunA/file25abb77a2fa12b"' \
 #>     -d 'MODEL="./model"' \
 #>     -d 'OUTPUT="./results/output"' \
 #>     -d SPATIAL=F \
@@ -211,6 +211,8 @@ library(dplyr)
 #> 
 #>     intersect, setdiff, setequal, union
 library(ggplot2)
+library(purrr)
+library(readr)
 ```
 
 On a local machine (where we fetched the simulated data from the remote
@@ -321,6 +323,30 @@ filter(time == 0) %>%
 ```
 
 ![](figures/f4ratio_boxplots-1.png)<!-- -->
+
+## Save numeric identifiers of chromosomes for tree sequence processing
+
+As can be seen from this notebook, thanks to the *slendr* interface, we
+can refer to individuals (and their populations) with easy to read
+string names. However, the Jupyter notebook describing detection of true
+Neanderthal fragments in simulated tree sequences
+(`detect_tracts.ipynb`) is implemented in Python using native tskit
+Python interface which lacks this functionality. In the following chunk,
+we will save a table of individual names together with the unique
+numerical IDs of their chromosomes in the tree sequence. We will use
+this table in that Jupyter notebook for assigning detected tracts to the
+correct individuals:
+
+``` r
+node_table <-
+  ts_data(ts, remembered = TRUE) %>%
+  filter(pop %in% c("EUR1", "EUR2")) %>%
+  as_tibble() %>%
+  mutate(slim_id = map_int(node_id, ~ ts$node(as.integer(.x))$metadata["slim_id"])) %>%
+  select(name, pop, time, slim_id)
+
+write_tsv(node_table, "results/nodes.tsv")
+```
 
 ## VCF output
 
