@@ -1,36 +1,19 @@
----
-output: github_document
----
-
-
 
 # Simulating Neanderthal introgression data using *slendr*
 
-Let's start by loading the *slendr* library (we install a development version from GitHub):
+Let’s start by loading the *slendr* library (we install a development
+version from GitHub):
 
-
-```r
+``` r
 devtools::install_github("bodkan/slendr")
-#> Downloading GitHub repo bodkan/slendr@HEAD
-#> 
-#>      checking for file ‘/tmp/RtmpPluKxV/remotes384bb357e36b01/bodkan-slendr-60e4619/DESCRIPTION’ ...  ✔  checking for file ‘/tmp/RtmpPluKxV/remotes384bb357e36b01/bodkan-slendr-60e4619/DESCRIPTION’
-#>   ─  preparing ‘slendr’:
-#>      checking DESCRIPTION meta-information ...  ✔  checking DESCRIPTION meta-information
-#>   ─  checking for LF line-endings in source and make files and shell scripts
-#>   ─  checking for empty or unneeded directories
-#>    Omitted ‘LazyData’ from DESCRIPTION
-#>   ─  building ‘slendr_0.0.0.9000.tar.gz’
-#>      
-#> 
-#> Installing package into '/home/krd114/.my_local/R_LIBS'
-#> (as 'lib' is unspecified)
+#> Skipping install of 'slendr' from a github remote, the SHA1 (69059a9b) has not changed since last install.
+#>   Use `force = TRUE` to force installation
 
 SEED <- 314159265
 set.seed(SEED)
 ```
 
-
-```r
+``` r
 library(slendr)
 
 # we also need to set the path to the Python environment containing
@@ -38,34 +21,38 @@ library(slendr)
 reticulate::use_condaenv("retipy", required = TRUE)
 ```
 
-Set the location for model configuration files and the output data directory:
+Set the location for model configuration files and the output data
+directory:
 
-
-```r
+``` r
 model_dir <- "./model"
 output_dir <- "./results"
 
 if (!dir.exists(output_dir)) dir.create(output_dir)
 ```
 
-Let's specify the simplest possible introgression model with only three populations:
+Let’s specify the simplest possible introgression model with only three
+populations:
 
-- one African population with $N_e = 10000$ (persisting from 650 kya to the present)
-- one Neanderthal population with $N_e = 1000$ (becomes extinct at 40 kya)
-- one "European" population -- no complex Eurasian history, a single uniform population with $N_e = 5000$
+  - one African population with \(N_e = 10000\) (persisting from 650 kya
+    to the present)
+  - one Neanderthal population with \(N_e = 1000\) (becomes extinct at
+    40 kya)
+  - one “European” population – no complex Eurasian history, a single
+    uniform population with \(N_e = 5000\)
 
+<!-- end list -->
 
-```r
-afr <- population("AFR", time = 650e3, N = 10000)
-nea <- population("NEA", parent = afr, time = 600e3, N = 1000, remove = 35e3)
+``` r
+afr <- population("AFR", time = 600e3, N = 10000)
+nea <- population("NEA", time = 600e3, N = 1000, remove = 35e3)
 eur1 <- population("EUR1", parent = afr, time = 70e3, N = 5000)
 eur2 <- population("EUR2", parent = eur1, time = 45e3, N = 5000)
 ```
 
 Neanderthal introgression into Europeans between 55-50 kya at 3%:
 
-
-```r
+``` r
 prop1 <- 0.03
 prop2 <- 0.01
 
@@ -75,10 +62,10 @@ gf <- list(
 )
 ```
 
-Compile the *slendr* model to a set configuration files which will be loaded by the SLiM backend script below:
+Compile the *slendr* model to a set configuration files which will be
+loaded by the SLiM backend script below:
 
-
-```r
+``` r
 model <- compile(
   populations = list(nea, afr, eur1, eur2), geneflow = gf,
   generation_time = 30,
@@ -86,14 +73,19 @@ model <- compile(
 )
 ```
 
-Define a couple of individuals that will be "sampled" (i.e. explicitly remembered in the tree sequence with their complete genetic sequence):
+Define a couple of individuals that will be “sampled” (i.e. explicitly
+remembered in the tree sequence with their complete genetic sequence):
 
-- we will sample one Neanderthal 70 kya old (approximating the high-coverage "Altai" Neanderthal genome) and another one 40 ky old (approximating the high-coverage Neanderthal from the Vindija cave)
-- 300 present-day Africans, 100 present-day Europeans
-- a time-series of early-modern Europeans sampled between 30000 and 3000 kya, one individual every 1000 years
+  - we will sample one Neanderthal 70 kya old (approximating the
+    high-coverage “Altai” Neanderthal genome) and another one 40 ky old
+    (approximating the high-coverage Neanderthal from the Vindija cave)
+  - 300 present-day Africans, 100 present-day Europeans
+  - a time-series of early-modern Europeans sampled between 30000 and
+    3000 kya, one individual every 1000 years
 
+<!-- end list -->
 
-```r
+``` r
 nea_samples <- sampling(model, times = c(70000, 40000), list(nea, 1))
 present_samples <- sampling(model, times = 0, list(afr, 300), list(eur1, 100), list(eur2, 100))
 emh_samples <- sampling(model, times = seq(40000, 2000, by = -1000), list(eur1, 1), list(eur2, 1))
@@ -101,10 +93,11 @@ emh_samples <- sampling(model, times = seq(40000, 2000, by = -1000), list(eur1, 
 samples <- rbind(nea_samples, present_samples, emh_samples)
 ```
 
-Finally we execute the simulation (we simulate 100Mb of sequence in each sampled individual, with the recombination rate $10^{-8}$ per bp per generation):
+Finally we execute the simulation (we simulate 100Mb of sequence in each
+sampled individual, with the recombination rate \(10^{-8}\) per bp per
+generation):
 
-
-```r
+``` r
 slim(
   model, sequence_length = 100e6, recombination_rate = 1e-8,
   sampling = samples, method = "batch", output = file.path(output_dir, "output"),
@@ -115,14 +108,14 @@ slim(
 #> 
 #> /home/krd114/.my_local/bin/slim  \
 #>     -d SEED=314159265  \
-#>     -d 'SAMPLES="/tmp/RtmpPluKxV/file384bb37ea22b5a"' \
+#>     -d 'SAMPLES="/tmp/RtmpxMNHBg/file2487b85eb56fa7"' \
 #>     -d 'MODEL="./model"' \
 #>     -d 'OUTPUT="./results/output"' \
 #>     -d SPATIAL=F \
 #>     -d SEQUENCE_LENGTH=100000000 \
 #>     -d RECOMB_RATE=1e-08 \
 #>     -d BURNIN_LENGTH=0 \
-#>     -d SIMULATION_LENGTH=21667 \
+#>     -d SIMULATION_LENGTH=20000 \
 #>     -d SAVE_LOCATIONS=F \
 #>     -d MAX_ATTEMPTS=10 \
 #>     ./model/script.slim 
@@ -131,63 +124,82 @@ slim(
 
 ## Loading and processing the tree sequence output
 
-Let's load the tree sequence generated by SLiM under the hood,
-[recapitate](https://pyslim.readthedocs.io/en/latest/tutorial.html#recapitation) it to
-ensure coalescence of all genealogies in the tree sequence, and
-[simplify](https://pyslim.readthedocs.io/en/latest/tutorial.html#simplification) it to
-only nodes appearing as coalescence nodes somewhere in the genealogy of the explicitly
-sampled individuals (or rather their chromosomes). At the same time, let's also sprinkle mutations on the tree sequence data structure (note that we did not simulate any mutations at all so far, which is why we can generate so much data for so many individuals in a forward simulation):
+Let’s load the tree sequence generated by SLiM under the hood,
+[recapitate](https://pyslim.readthedocs.io/en/latest/tutorial.html#recapitation)
+it to ensure coalescence of all genealogies in the tree sequence, and
+[simplify](https://pyslim.readthedocs.io/en/latest/tutorial.html#simplification)
+it to only nodes appearing as coalescence nodes somewhere in the
+genealogy of the explicitly sampled individuals (or rather their
+chromosomes). At the same time, let’s also sprinkle mutations on the
+tree sequence data structure (note that we did not simulate any
+mutations at all so far, which is why we can generate so much data for
+so many individuals in a forward simulation):
 
+``` r
+model <- read(model_dir)
+```
 
-```r
+``` r
 ts <- ts_load(model, file = file.path(output_dir, "output_ts.trees"),
               recapitate = TRUE, Ne = 10000, recombination_rate = 1e-8,
-              simplify = TRUE, mutation_rate = 1e-8, random_seed = SEED)
+              simplify = TRUE,
+              mutate = TRUE, mutation_rate = 1e-8, random_seed = SEED,
+              migration_matrix = list(c(0, 1, 0, 0),
+                                      c(1, 0, 0, 0),
+                                      c(0, 0, 0, 0),
+                                      c(0, 0, 0, 0)))
 ```
 
 ## Sanity checks
 
-First, let's check the contents of the tree sequence tables to make sure we have all the individuals we wanted to sample:
+First, let’s check the contents of the tree sequence tables to make sure
+we have all the individuals we wanted to sample:
 
-
-```r
+``` r
 ts_data(ts)
 #> slendr 'tsdata' object 
 #> ---------------------- 
 #> tree-sequence contents:
-#>   AFR - 300 sampled, 139214 retained individuals
-#>   NEA - 2 sampled, 5218 retained individuals
-#>   EUR1 - 139 sampled, 52746 retained individuals
-#>   EUR2 - 139 sampled, 37340 retained individuals
+#>   NEA - 2 sampled, 5047 retained individuals
+#>   AFR - 300 sampled, 136602 retained individuals
+#>   EUR1 - 139 sampled, 52786 retained individuals
+#>   EUR2 - 139 sampled, 37848 retained individuals
 #> 
-#> total: 580 sampled, 234518 retained individuals and
+#> total: 580 sampled, 232283 retained individuals and
 #>  no nodes from an unassigned individual 
 #> 
 #> oldest sampled individual: 70000 backward time units
 #> youngest sampled individual: 0 backward time units
 #> 
-#> oldest node: 8436864 backward time units
+#> oldest node: 17530992 backward time units
 #> youngest node: 0 backward time units
 #> ---------------------- 
 #> data was generated by a non-spatial slendr model
 ```
 
-Then, just for fun, let's save the data as an EIGENSTRAT format used by ADMIXTOOLS. Here we are creating data with an added artificial outgroup "Chimp" (note that we didn't explicitly simulate chimpanzee lineage to save some time during simulation). This sample will have all ancestral alleles.
+Then, just for fun, let’s save the data as an EIGENSTRAT format used by
+ADMIXTOOLS. Here we are creating data with an added artificial outgroup
+“Chimp” (note that we didn’t explicitly simulate chimpanzee lineage to
+save some time during simulation). This sample will have all ancestral
+alleles.
 
-This command can take unfortunately quite long and takes quite a bit of memory, because we are extracting a matrix of all genotypes in the tree sequence and muging it a bit in R to be EIGENSTRAT compliant. This is very inefficient and will need some reimplementing to make it scalable... But it works reasonably OK (I can run it on my old laptop).
+This command can take unfortunately quite long and takes quite a bit of
+memory, because we are extracting a matrix of all genotypes in the tree
+sequence and muging it a bit in R to be EIGENSTRAT compliant. This is
+very inefficient and will need some reimplementing to make it scalable…
+But it works reasonably OK (I can run it on my old laptop).
 
-
-```r
+``` r
 prefix <- file.path(output_dir, "eigenstrat")
 
 eigen_data <- ts_eigenstrat(ts, prefix = prefix, outgroup = "chimp")
-#> 965 multiallelic sites (0.184% out of 524168 total) detected and removed
+#> 1210 multiallelic sites (0.205% out of 589687 total) detected and removed
 ```
 
-Let's load [admixr](https://bodkan.net/admixr) (plus dplyr and ggplot2 for table munging and plotting) and do some quick sanity checks.
+Let’s load [admixr](https://bodkan.net/admixr) (plus dplyr and ggplot2
+for table munging and plotting) and do some quick sanity checks.
 
-
-```r
+``` r
 library(admixr)
 library(dplyr)
 #> 
@@ -201,42 +213,42 @@ library(dplyr)
 library(ggplot2)
 ```
 
-On a local machine (where we fetched the simulated data from the remote machine), we can run this instead of the `ts_eigenstrat` call above:
+On a local machine (where we fetched the simulated data from the remote
+machine), we can run this instead of the `ts_eigenstrat` call above:
 
-
-```r
+``` r
 prefix <- file.path(output_dir, "eigenstrat")
 
 eigen_data <- eigenstrat(prefix)
 ```
 
-Let's also extract the names (and ages) of all sampled individualsL
+Let’s also extract the names (and ages) of all sampled individualsL
 
-
-```r
+``` r
 samples <- ts_samples(ts)
 ```
 
-First, $f_4(\textrm{African}_i, \textrm{African}_j, \textrm{Neanderthal}, \textrm{chimp})$ should
-be zero (no introgression into any African) but $f_4(\textrm{African}_i, \textrm{European}_j,
-\textrm{Neanderthal}, \textrm{chimp})$ should be significantly negative because of the genetic
-affinity between Neanderthals and Europeans (we do this only for a subset of present-day individuals
-to reduce computational time and memory). Furthermore, because the EUR2 population
-received an additional "pulse" of Neanderthal ancestry compared to the EUR1 population,
-it's $f_4$ value is even more negative.
+First,
+\(f_4(\textrm{African}_i, \textrm{African}_j, \textrm{Neanderthal}, \textrm{chimp})\)
+should be zero (no introgression into any African) but
+\(f_4(\textrm{African}_i, \textrm{European}_j, \textrm{Neanderthal}, \textrm{chimp})\)
+should be significantly negative because of the genetic affinity between
+Neanderthals and Europeans (we do this only for a subset of present-day
+individuals to reduce computational time and memory). Furthermore,
+because the EUR2 population received an additional “pulse” of
+Neanderthal ancestry compared to the EUR1 population, it’s \(f_4\) value
+is even more negative.
 
-
-```r
+``` r
 f4_result <-
   filter(samples, time == 0, pop %in% c("AFR", "EUR1", "EUR2")) %>%
   group_by(pop) %>%
-  sample_n(50) %>%
+  sample_n(25) %>%
   pull(name) %>%
   f4(W = "AFR_1", X = ., Y = "NEA_1", Z = "chimp", data = eigen_data)
 ```
 
-
-```r
+``` r
 inner_join(f4_result, samples, by = c("X" = "name")) %>%
   ggplot(aes(pop, f4, color = pop)) +
     geom_pointrange(aes(ymin = f4 - 2 * stderr, ymax = f4 + 2 * stderr, group = X),
@@ -248,24 +260,31 @@ inner_join(f4_result, samples, by = c("X" = "name")) %>%
             "Statistical test for the presence of Neanderthal ancestry")
 ```
 
-![plot of chunk f4_test](figures/f4_test-1.png)
+![](figures/f4_test-1.png)<!-- -->
 
-Looks great! We can see that the Africans are all consistent with the hypothesis of no Neanderthal introgression (as expected, and as implied by the $f_4$ values around 0). On the other hand, we get significantly negative $f_4$ values for all European individuals, indicating that they carry evidence of Neanderthal introgression (we see significantly more "ABBA" sites than "BABA" sites).
+Looks great\! We can see that the Africans are all consistent with the
+hypothesis of no Neanderthal introgression (as expected, and as implied
+by the \(f_4\) values around 0). On the other hand, we get significantly
+negative \(f_4\) values for all European individuals, indicating that
+they carry evidence of Neanderthal introgression (we see significantly
+more “ABBA” sites than “BABA” sites).
 
-Let's see how much Neanderthal ancestry we detect in Europeans (this is, of course, a different question than *if* we detect it). First let's use the `f4ratio` function in the *admixr* R package to perform the $f_4$-ratio estimate of Neanderhal ancestry:
+Let’s see how much Neanderthal ancestry we detect in Europeans (this is,
+of course, a different question than *if* we detect it). First let’s use
+the `f4ratio` function in the *admixr* R package to perform the
+\(f_4\)-ratio estimate of Neanderhal ancestry:
 
-
-```r
+``` r
 f4ratio_result <-
   filter(samples, pop %in% c("EUR1", "EUR2")) %>%
   pull(name) %>%
   f4ratio(X = ., A = "NEA_1", B = "NEA_2", C = "AFR_1", O = "chimp", data = eigen_data)
 ```
 
-Now let's plot the time-series of Neanderthal ancestry estimates in simulated Europeans over time:
+Now let’s plot the time-series of Neanderthal ancestry estimates in
+simulated Europeans over time:
 
-
-```r
+``` r
 inner_join(f4ratio_result, samples, by = c("X" = "name")) %>%
 filter(pop %in% c("EUR1", "EUR2")) %>%
   ggplot(aes(time, alpha)) +
@@ -280,15 +299,15 @@ filter(pop %in% c("EUR1", "EUR2")) %>%
 #> `geom_smooth()` using formula 'y ~ x'
 ```
 
-![plot of chunk f4ratio_trajectory](figures/f4ratio_trajectory-1.png)
+![](figures/f4ratio_trajectory-1.png)<!-- -->
 
-As expected, we see a constant level of Neanderthal ancestry around 3% (which is exactly
-what we have simulated)!
+As expected, we see a constant level of Neanderthal ancestry around 3%
+(which is exactly what we have simulated)\!
 
-Let's also check the amounts of Neanderthal ancestry in present-day Europeans and Asians:
+Let’s also check the amounts of Neanderthal ancestry in present-day
+Europeans and Asians:
 
-
-```r
+``` r
 inner_join(f4ratio_result, samples, by = c("X" = "name")) %>%
 filter(time == 0) %>%
   ggplot(aes(pop, alpha, color = pop)) +
@@ -301,19 +320,20 @@ filter(time == 0) %>%
     labs(y = "Neanderhal ancestry proportion")
 ```
 
-![plot of chunk f4ratio_boxplots](figures/f4ratio_boxplots-1.png)
-
+![](figures/f4ratio_boxplots-1.png)<!-- -->
 
 ## VCF output
 
-Having made sure that the simulated data looks reasonable, we can save the simulated genotypes in a VCF format:
+Having made sure that the simulated data looks reasonable, we can save
+the simulated genotypes in a VCF format:
 
-
-```r
-ts_vcf(ts_mut, path = file.path(output_dir, "output.vcf.gz"))
-#> Error in ts_vcf(ts_mut, path = file.path(output_dir, "output.vcf.gz")): object 'ts_mut' not found
+``` r
+ts_vcf(ts, path = file.path(output_dir, "output.vcf.gz"))
 ```
 
 ## How to run this pipeline
 
-Of course, individual chunks can be run in an R console. The entire RMarkdown notebook can be rendered (simulations will be run, output files will be generated, and figures will be plotted) by typing `R -e 'rmarkdown::render("introgression.Rmd")'`.
+Of course, individual chunks can be run in an R console. The entire
+RMarkdown notebook can be rendered (simulations will be run, output
+files will be generated, and figures will be plotted) by typing `R -e
+'rmarkdown::render("introgression.Rmd")'`.
