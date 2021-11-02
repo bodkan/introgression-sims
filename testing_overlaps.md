@@ -2,7 +2,7 @@
 # Analysing the overlap between true and estimated segments
 
 I like to use the package
-p_GenomicRanges\_\](<https://bioconductor.org/packages/release/bioc/vignettes/GenomicRanges/inst/doc/GenomicRangesIntroduction.html>)
+[_GenomicRanges_](<https://bioconductor.org/packages/release/bioc/vignettes/GenomicRanges/inst/doc/GenomicRangesIntroduction.html>)
 from Bioconductor for this type of analysis (checking overlaps between
 ranges, proportions of overlaps, etc.).
 
