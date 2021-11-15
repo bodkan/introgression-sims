@@ -1,0 +1,14 @@
+name: introgression-sims
+channels:
+  - defaults
+dependencies:
+  - jupyterlab
+  - pandas
+  - numpy
+  - tskit
+  - tsinfer
+  - tqdm
+  - matplotlib
+  - pyslim
+  - ipywidgets
+prefix: /projects/racimolab/people/krd114/.conda/envs/introgression-sims
