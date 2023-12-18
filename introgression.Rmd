@@ -64,19 +64,23 @@ prop1 <- 0.03
 prop2 <- 0.01
 
 gf <- list(
-  geneflow(from = nea, to = eur1, rate = prop1, start = 55000, end = 50000),
-  geneflow(from = nea, to = eur2, rate = prop2, start = 37000, end = 36000)
+  gene_flow(from = nea, to = eur1, rate = prop1, start = 55000, end = 50000),
+  gene_flow(from = nea, to = eur2, rate = prop2, start = 37000, end = 36000)
 )
 ```
 
 Compile the *slendr* model to a set configuration files which will be loaded by the SLiM backend script below:
 
 ```{r}
-model <- compile(
-  populations = list(nea, afr, eur1, eur2), geneflow = gf,
+model <- compile_model(
+  populations = list(nea, afr, eur1, eur2), gene_flow = gf,
   generation_time = 30,
-  dir = model_dir, overwrite = TRUE
+  path = model_dir, overwrite = TRUE
 )
+```
+
+```{r}
+plot_model(model, proportions = TRUE)
 ```
 
 Define a couple of individuals that will be "sampled" (i.e. explicitly remembered in the tree sequence with their complete genetic sequence):
@@ -86,9 +90,9 @@ Define a couple of individuals that will be "sampled" (i.e. explicitly remembere
 - a time-series of early-modern Europeans sampled between 30000 and 3000 kya, one individual every 1000 years
 
 ```{r}
-nea_samples <- sampling(model, times = c(70000, 40000), list(nea, 1))
-present_samples <- sampling(model, times = 0, list(afr, 300), list(eur1, 100), list(eur2, 100))
-emh_samples <- sampling(model, times = seq(40000, 2000, by = -1000), list(eur1, 1), list(eur2, 1))
+nea_samples <- schedule_sampling(model, times = c(70000, 40000), list(nea, 1))
+present_samples <- schedule_sampling(model, times = 0, list(afr, 300), list(eur1, 100), list(eur2, 100))
+emh_samples <- schedule_sampling(model, times = seq(40000, 2000, by = -1000), list(eur1, 1), list(eur2, 1))
 
 samples <- rbind(nea_samples, present_samples, emh_samples)
 ```
@@ -96,10 +100,10 @@ samples <- rbind(nea_samples, present_samples, emh_samples)
 Finally we execute the simulation (we simulate 100Mb of sequence in each sampled individual, with the recombination rate $10^{-8}$ per bp per generation):
 
 ```{r}
-slim(
+ts <- slim(
   model, sequence_length = 100e6, recombination_rate = 1e-8,
-  sampling = samples, method = "batch", output = file.path(output_dir, "output"),
-  verbose = TRUE, seed = SEED
+  samples = samples, method = "batch", output = file.path(output_dir, "output_ts.trees"),
+  verbose = TRUE, random_seed = SEED
 )
 ```
 
