@@ -22,17 +22,14 @@ Let's start by loading the *slendr* library (we install a development version fr
 
 ```{r}
 devtools::install_github("bodkan/slendr")
-
-SEED <- 314159265
-set.seed(SEED)
 ```
 
 ```{r}
 library(slendr)
+init_env()
 
-# we also need to set the path to the Python environment containing
-# msprime and tskit modules we use for tree sequence processing
-reticulate::use_condaenv("retipy", required = TRUE)
+SEED <- 314159265
+set.seed(SEED)
 ```
 
 Set the location for model configuration files and the output data directory:
@@ -53,27 +50,20 @@ Let's specify the simplest possible introgression model with only three populati
 ```{r}
 afr <- population("AFR", time = 600e3, N = 10000)
 nea <- population("NEA", time = 600e3, N = 1000, remove = 35e3)
-eur1 <- population("EUR1", parent = afr, time = 70e3, N = 5000)
-eur2 <- population("EUR2", parent = eur1, time = 45e3, N = 5000)
+eur <- population("EUR", parent = afr, time = 70e3, N = 5000)
 ```
 
 Neanderthal introgression into Europeans between 55-50 kya at 3%:
 
 ```{r}
-prop1 <- 0.03
-prop2 <- 0.01
-
-gf <- list(
-  gene_flow(from = nea, to = eur1, rate = prop1, start = 55000, end = 50000),
-  gene_flow(from = nea, to = eur2, rate = prop2, start = 37000, end = 36000)
-)
+gf <- gene_flow(from = nea, to = eur, rate = 0.03, start = 55000, end = 50000)
 ```
 
 Compile the *slendr* model to a set configuration files which will be loaded by the SLiM backend script below:
 
 ```{r}
 model <- compile_model(
-  populations = list(nea, afr, eur1, eur2), gene_flow = gf,
+  populations = list(nea, afr, eur), gene_flow = gf,
   generation_time = 30,
   path = model_dir, overwrite = TRUE
 )
@@ -91,18 +81,17 @@ Define a couple of individuals that will be "sampled" (i.e. explicitly remembere
 
 ```{r}
 nea_samples <- schedule_sampling(model, times = c(70000, 40000), list(nea, 1))
-present_samples <- schedule_sampling(model, times = 0, list(afr, 300), list(eur1, 100), list(eur2, 100))
-emh_samples <- schedule_sampling(model, times = seq(40000, 2000, by = -1000), list(eur1, 1), list(eur2, 1))
+present_samples <- schedule_sampling(model, times = 0, list(afr, 10), list(eur, 500))
 
-samples <- rbind(nea_samples, present_samples, emh_samples)
+samples <- rbind(nea_samples, present_samples)
 ```
 
 Finally we execute the simulation (we simulate 100Mb of sequence in each sampled individual, with the recombination rate $10^{-8}$ per bp per generation):
 
 ```{r}
 ts <- slim(
-  model, sequence_length = 100e6, recombination_rate = 1e-8,
-  samples = samples, method = "batch", output = file.path(output_dir, "output_ts.trees"),
+  model, sequence_length = 200e6, recombination_rate = 1e-8,
+  samples = samples, method = "batch", output = file.path(output_dir, "output_ts_slim.trees"),
   verbose = TRUE, random_seed = SEED
 )
 ```
@@ -117,18 +106,11 @@ only nodes appearing as coalescence nodes somewhere in the genealogy of the expl
 sampled individuals (or rather their chromosomes). At the same time, let's also sprinkle mutations on the tree sequence data structure (note that we did not simulate any mutations at all so far, which is why we can generate so much data for so many individuals in a forward simulation):
 
 ```{r, eval = FALSE}
-model <- read(model_dir)
-```
+model <- read_model(model_dir)
 
-```{r}
-ts <- ts_load(model, file = file.path(output_dir, "output_ts.trees"),
-              recapitate = TRUE, Ne = 10000, recombination_rate = 1e-8,
-              simplify = TRUE,
-              mutate = TRUE, mutation_rate = 1e-8, random_seed = SEED,
-              migration_matrix = list(c(0, 1, 0, 0),
-                                      c(1, 0, 0, 0),
-                                      c(0, 0, 0, 0),
-                                      c(0, 0, 0, 0)))
+ts <- ts_load(file.path(output_dir, "output_ts_slim.trees"), model) %>%
+  ts_recapitate(recombination_rate = 1e-8, Ne = 10000) %>%
+  ts_mutate(1e-8)
 ```
 
 ## Sanity checks
@@ -136,7 +118,7 @@ ts <- ts_load(model, file = file.path(output_dir, "output_ts.trees"),
 First, let's check the contents of the tree sequence tables to make sure we have all the individuals we wanted to sample:
 
 ```{r}
-ts_data(ts)
+ts_samples(ts)
 ```
 
 Then, just for fun, let's save the data as an EIGENSTRAT format used by ADMIXTOOLS. Here we are creating data with an added artificial outgroup "Chimp" (note that we didn't explicitly simulate chimpanzee lineage to save some time during simulation). This sample will have all ancestral alleles.
@@ -159,7 +141,7 @@ library(purrr)
 library(readr)
 ```
 
-On a local machine (where we fetched the simulated data from the remote machine), we can run this instead of the `ts_eigenstrat` call above:
+On a local machine (where we fetched the simulated data f om the remote machine), we can run this instead of the `ts_eigenstrat` call above:
 
 ```{r}
 prefix <- file.path(output_dir, "eigenstrat")
@@ -280,3 +262,9 @@ ts_vcf(ts, path = file.path(output_dir, "output.vcf.gz"))
 ## How to run this pipeline
 
 Of course, individual chunks can be run in an R console. The entire RMarkdown notebook can be rendered (simulations will be run, output files will be generated, and figures will be plotted) by typing `R -e 'rmarkdown::render("introgression.Rmd")'`.
+
+## Compute the tracts (the old way)
+
+```
+/Users/mp/Library/r-miniconda-arm64/envs/Python-3.11_msprime-1.2.0_tskit-0.5.6_pyslim-1.0.4_tspop-0.0.2/bin/python detect_tracts.py --slendr model --trees results/output_ts_slim.trees --output results/tracts_slim.tsv
+```
