@@ -109,7 +109,7 @@ populations = pandas.read_table(model_dir / "populations.tsv")
 print("Loading tree sequence input data...")
 
 # load the complete tree sequence output
-ts = pyslim.load(args.trees)
+ts = tskit.load(args.trees)
 
 # get nodes (chromosomes) of remembered individuals and simplify
 # the tree sequence only to those nodes
