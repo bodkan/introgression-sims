@@ -14,6 +14,8 @@ knitr::opts_chunk$set(
   dpi = 80,
   eval = TRUE
 )
+
+setwd(here::here())
 ```
 
 # Simulating Neanderthal introgression data using *slendr*
@@ -73,8 +75,7 @@ plot_model(model, proportions = TRUE)
 Define a couple of individuals that will be "sampled" (i.e. explicitly remembered in the tree sequence with their complete genetic sequence):
 
 - we will sample one Neanderthal 70 kya old (approximating the high-coverage "Altai" Neanderthal genome) and another one 40 ky old (approximating the high-coverage Neanderthal from the Vindija cave)
-- 300 present-day Africans, 100 present-day Europeans
-- a time-series of early-modern Europeans sampled between 30000 and 3000 kya, one individual every 1000 years
+- 10 present-day Africans, 500 present-day Europeans
 
 ```{r}
 nea_samples <- schedule_sampling(model, times = c(70000, 40000), list(nea, 1))
@@ -83,7 +84,7 @@ present_samples <- schedule_sampling(model, times = 0, list(afr, 10), list(eur, 
 samples <- rbind(nea_samples, present_samples)
 ```
 
-Finally we execute the simulation (we simulate 100Mb of sequence in each sampled individual, with the recombination rate $10^{-8}$ per bp per generation):
+Finally we execute the simulation (we simulate 200Mb of sequence in each sampled individual, with the recombination rate $10^{-8}$ per bp per generation):
 
 ```{r}
 ts_msprime <- msprime(
@@ -101,162 +102,6 @@ ensure coalescence of all genealogies in the tree sequence, and
 [simplify](https://pyslim.readthedocs.io/en/latest/tutorial.html#simplification) it to
 only nodes appearing as coalescence nodes somewhere in the genealogy of the explicitly
 sampled individuals (or rather their chromosomes). At the same time, let's also sprinkle mutations on the tree sequence data structure (note that we did not simulate any mutations at all so far, which is why we can generate so much data for so many individuals in a forward simulation):
-
-```{r, eval = FALSE}
-model <- read_model("model")
-
-ts <- ts_load(file.path(output_dir, "output_ts_msprime.trees"), model) %>% ts_mutate(1e-8)
-```
-
-## Sanity checks
-
-First, let's check the contents of the tree sequence tables to make sure we have all the individuals we wanted to sample:
-
-```{r}
-ts_samples(ts)
-```
-
-Then, just for fun, let's save the data as an EIGENSTRAT format used by ADMIXTOOLS. Here we are creating data with an added artificial outgroup "Chimp" (note that we didn't explicitly simulate chimpanzee lineage to save some time during simulation). This sample will have all ancestral alleles.
-
-This command can take unfortunately quite long and takes quite a bit of memory, because we are extracting a matrix of all genotypes in the tree sequence and muging it a bit in R to be EIGENSTRAT compliant. This is very inefficient and will need some reimplementing to make it scalable... But it works reasonably OK (I can run it on my old laptop).
-
-```{r}
-prefix <- file.path(output_dir, "eigenstrat")
-
-eigen_data <- ts_eigenstrat(ts, prefix = prefix, outgroup = "chimp")
-```
-
-Let's load [admixr](https://bodkan.net/admixr) (plus dplyr and ggplot2 for table munging and plotting) and do some quick sanity checks.
-
-```{r}
-library(admixr)
-library(dplyr)
-library(ggplot2)
-library(purrr)
-library(readr)
-```
-
-On a local machine (where we fetched the simulated data from the remote machine), we can run this instead of the `ts_eigenstrat` call above:
-
-```{r}
-prefix <- file.path(output_dir, "eigenstrat")
-
-eigen_data <- eigenstrat(prefix)
-```
-
-Let's also extract the names (and ages) of all sampled individualsL
-
-```{r}
-samples <- ts_samples(ts)
-```
-
-First, $f_4(\textrm{African}_i, \textrm{African}_j, \textrm{Neanderthal}, \textrm{chimp})$ should
-be zero (no introgression into any African) but $f_4(\textrm{African}_i, \textrm{European}_j,
-\textrm{Neanderthal}, \textrm{chimp})$ should be significantly negative because of the genetic
-affinity between Neanderthals and Europeans (we do this only for a subset of present-day individuals
-to reduce computational time and memory). Furthermore, because the `r (eur2$pop)[1]` population
-received an additional "pulse" of Neanderthal ancestry compared to the `r (eur1$pop)[1]` population,
-it's $f_4$ value is even more negative.
-
-```{r}
-f4_result <-
-  filter(samples, time == 0, pop %in% c("AFR", "EUR1", "EUR2")) %>%
-  group_by(pop) %>%
-  sample_n(25) %>%
-  pull(name) %>%
-  f4(W = "AFR_1", X = ., Y = "NEA_1", Z = "chimp", data = eigen_data)
-```
-
-```{r, f4_test, fig.width = 7, fig.height = 5}
-inner_join(f4_result, samples, by = c("X" = "name")) %>%
-  ggplot(aes(pop, f4, color = pop)) +
-    geom_pointrange(aes(ymin = f4 - 2 * stderr, ymax = f4 + 2 * stderr, group = X),
-                    position = position_dodge(width = 1)) +
-    geom_boxplot(outlier.shape = NA, alpha = 0.75) +
-    geom_hline(yintercept = 0, linetype = 2) +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) +
-    ggtitle("f4(AFR1, <African or European>; Neanderthal, Chimp)",
-            "Statistical test for the presence of Neanderthal ancestry")
-```
-
-Looks great! We can see that the Africans are all consistent with the hypothesis of no Neanderthal introgression (as expected, and as implied by the $f_4$ values around 0). On the other hand, we get significantly negative $f_4$ values for all European individuals, indicating that they carry evidence of Neanderthal introgression (we see significantly more "ABBA" sites than "BABA" sites).
-
-Let's see how much Neanderthal ancestry we detect in Europeans (this is, of course, a different question than *if* we detect it). First let's use the `f4ratio` function in the *admixr* R package to perform the $f_4$-ratio estimate of Neanderhal ancestry:
-
-```{r}
-f4ratio_result <-
-  filter(samples, pop %in% c("EUR1", "EUR2")) %>%
-  pull(name) %>%
-  f4ratio(X = ., A = "NEA_1", B = "NEA_2", C = "AFR_1", O = "chimp", data = eigen_data)
-```
-
-Now let's plot the time-series of Neanderthal ancestry estimates in simulated Europeans over time:
-
-```{r, f4ratio_trajectory, fig.width = 7, fig.height = 5}
-inner_join(f4ratio_result, samples, by = c("X" = "name")) %>%
-filter(pop %in% c("EUR1", "EUR2")) %>%
-  ggplot(aes(time, alpha)) +
-    geom_pointrange(aes(ymin = alpha - 2 * stderr, ymax = alpha + 2 * stderr)) +
-    geom_hline(yintercept = 0, linetype = 2) +
-    geom_smooth(method = "lm") +
-    coord_cartesian(ylim = c(0, 0.1)) +
-    xlim(45000, 0) +
-    facet_wrap(~ pop) +
-    ggtitle("f4-ratio estimate of Neanderthal ancestry in Europeans over time") +
-    labs(x = "time [years before present]", y = "Neanderhal ancestry proportion")
-```
-
-As expected, we see a constant level of Neanderthal ancestry around 3% (which is exactly
-what we have simulated)!
-
-Let's also check the amounts of Neanderthal ancestry in present-day Europeans and Asians:
-
-```{r, f4ratio_boxplots, fig.width = 7, fig.height = 5}
-inner_join(f4ratio_result, samples, by = c("X" = "name")) %>%
-filter(time == 0) %>%
-  ggplot(aes(pop, alpha, color = pop)) +
-    geom_pointrange(aes(ymin = alpha - 2 * stderr, ymax = alpha + 2 * stderr, group = X),
-                    position = position_dodge(width = 1)) +
-    geom_boxplot(outlier.shape = NA, alpha = 0.75) +
-    geom_hline(yintercept = 0, linetype = 2) +
-    theme(axis.text.x = element_blank(), axis.title.x = element_blank()) +
-    ggtitle("f4-ratio estimate of Neanderthal ancestry in between Europe and Asia") +
-    labs(y = "Neanderhal ancestry proportion")
-```
-
-
-## Save numeric identifiers of chromosomes for tree sequence processing
-
-As can be seen from this notebook, thanks to the *slendr* interface, we can refer to individuals
-(and their populations) with easy to read string names. However, the Jupyter notebook describing
-detection of true Neanderthal fragments in simulated tree sequences (`detect_tracts.ipynb`) is
-implemented in Python using native tskit Python interface which lacks this functionality. In the
-following chunk, we will save a table of individual names together with the unique numerical IDs of
-their chromosomes in the tree sequence. We will use this table in that Jupyter notebook for
-assigning detected tracts to the correct individuals:
-
-```{r}
-node_table <-
-  ts_data(ts, remembered = TRUE) %>%
-  filter(pop %in% c("EUR1", "EUR2")) %>%
-  as_tibble() %>%
-  mutate(slim_id = map_int(node_id, ~ ts$node(as.integer(.x))$metadata["slim_id"])) %>%
-  select(name, pop, time, slim_id)
-
-write_tsv(node_table, "results/nodes.tsv")
-```
-
-## VCF output
-
-Having made sure that the simulated data looks reasonable, we can save the simulated genotypes in a VCF format:
-
-```{r}
-ts_vcf(ts, path = file.path(output_dir, "output.vcf.gz"))
-```
-
-## How to run this pipeline
-
-Of course, individual chunks can be run in an R console. The entire RMarkdown notebook can be rendered (simulations will be run, output files will be generated, and figures will be plotted) by typing `R -e 'rmarkdown::render("introgression.Rmd")'`.
 
 ## Compute the tracts (the new way)
 
@@ -281,11 +126,16 @@ tracts <- rbind(tracts_slim, tracts_msprime)
 ```{r}
 ggplot(tracts) +
   geom_density(aes(length, color = sim)) +
-  scale_x_log10()
+  scale_x_log10() +
+  xlab("tract length [bp] (log scale)") +
+  ggtitle("Tract lengths across all EUR individuals")
 ```
 
 ```{r}
-ggplot(tracts) + geom_density(aes(length, color = sim))
+ggplot(tracts) +
+  geom_density(aes(length, color = sim)) +
+  xlab("tract length [bp]") +
+  ggtitle("Tract lengths across all EUR individuals")
 ```
 
 ```{r}
@@ -297,6 +147,10 @@ group_by(means, sim) %>% summarise(mean(mean))
 ```
 
 ```{r}
-ggplot(means, aes(sim, mean)) + geom_boxplot() + geom_jitter()
+ggplot(means, aes(sim, mean, color = sim)) +
+  geom_jitter(alpha = 0.2) +
+  geom_boxplot(alpha = 0.2) +
+  xlab("slendr simulator") + ylab("average tract length [bp]") +
+  ggtitle("Average Neanderthal tract lengths per individual",
+          "(each dot is a single European)")
 ```
-
